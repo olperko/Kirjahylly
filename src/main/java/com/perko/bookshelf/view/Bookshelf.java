@@ -1,4 +1,5 @@
 package com.perko.bookshelf.view;
+import com.perko.bookshelf.model.Book;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
@@ -11,10 +12,13 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-
-import com.perko.bookshelf.model.Book;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.io.File;
 
 public class Bookshelf extends Application {
 
@@ -24,6 +28,8 @@ public class Bookshelf extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+
+        Map<Integer, Book> books = new HashMap<>();
 
         Pane root = new Pane();
         HBox booksUpper = new HBox();
@@ -112,20 +118,41 @@ public class Bookshelf extends Application {
             boolean colorSelected = bookColor.getValue() != null;
             boolean allSelected = titleEntered && toggleSelected && colorSelected;
 
-            if (!allSelected) {
-                root.getChildren().add(missingInfo());
-            } else {
-                Book book = new Book(bookTitle.getText(), bookColor.getValue());
-                StackPane bookRectangle = bookRectangle(bookTitle.getText(), bookColor.getValue());
+            if (!allSelected) { root.getChildren().add(missingInfo());
+            } else if (upperSelected.isSelected()) {
 
-                if (upperSelected.isSelected()) {
+                if (booksUpper.getChildren().size() >= 23) { root.getChildren().add(shelfFull());
+                } else {
+
+                    StackPane bookRectangle = bookRectangle(bookTitle.getText(), bookColor.getValue());
                     booksUpper.getChildren().add(bookRectangle);
-                } else if (lowerSelected.isSelected()) {
-                    booksLower.getChildren().add(bookRectangle);
+
+                    Book book = new Book(bookTitle.getText(), bookColor.getValue());
+                    books.put(books.size()+1, book);
                 }
-                bookTitle.clear();
+
+            } else if (lowerSelected.isSelected()) {
+
+                if (booksLower.getChildren().size() >= 23) { root.getChildren().add(shelfFull());
+                } else {
+
+                    StackPane bookRectangle = bookRectangle(bookTitle.getText(), bookColor.getValue());
+                    booksLower.getChildren().add(bookRectangle);
+
+                    Book book = new Book(bookTitle.getText(), bookColor.getValue());
+                    books.put(books.size()+1, book);
+                }
+
             }
+
+            try {
+                createFile(bookTitle.getText());
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            bookTitle.clear();
         });
+
 
         /*
          * Lisätään oliot root-paneeliin.
@@ -161,7 +188,7 @@ public class Bookshelf extends Application {
     /*
      * Kirjojen luominen
      */
-    private StackPane bookRectangle(String title, Color color) {
+    protected StackPane bookRectangle(String title, Color color) {
 
         StackPane bookCovers = new StackPane();
         bookCovers.setPrefSize(30, 150);
@@ -180,6 +207,8 @@ public class Bookshelf extends Application {
 
         bookCovers.getChildren().addAll(rectangle, bookTitle);
 
+        bookCovers.setOnMouseClicked(event -> {readBook();});
+
         return bookCovers;
     }
 
@@ -194,6 +223,27 @@ public class Bookshelf extends Application {
         pause.play();
 
         return missingInformation;
+    }
+
+    private Label shelfFull() {
+
+        Label shelfFull = new Label("Valitsemasi hylly on täynnä, valitse toinen tai poista kirja hyllyltä.");
+        shelfFull.setLayoutX(105);
+        shelfFull.setLayoutY(155);
+
+        PauseTransition pause = new PauseTransition(Duration.seconds(5));
+        pause.setOnFinished(e -> shelfFull.setVisible(false));
+        pause.play();
+
+        return shelfFull;
+    }
+
+    private void createFile(String bookTitle) throws IOException {
+        File obj = new File(bookTitle);
+    }
+
+    private void readBook() {
+
     }
 
 }
