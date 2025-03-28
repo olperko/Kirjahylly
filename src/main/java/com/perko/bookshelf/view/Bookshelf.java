@@ -9,18 +9,25 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.io.File;
 
 public class Bookshelf extends Application {
+
+    private Stage bookPage;
 
     public static void main(String[] args) {
         launch(args);
@@ -31,6 +38,9 @@ public class Bookshelf extends Application {
 
         Map<Integer, Book> books = new HashMap<>();
 
+        /*
+         * Luodaan ohjelman ydinpaneelit
+         */
         Pane root = new Pane();
         HBox booksUpper = new HBox();
         booksUpper.setLayoutX(15);
@@ -39,9 +49,15 @@ public class Bookshelf extends Application {
         booksLower.setLayoutX(15);
         booksLower.setLayoutY(395);
 
-        Rectangle upperShelf = bookshelfStructure(10,190);
-        Rectangle lowerShelf = bookshelfStructure(10,370);
+        /*
+         * Hyllyjen visuaalisus
+         */
+        Rectangle upperShelf = bookshelfStructure(10, 190);
+        Rectangle lowerShelf = bookshelfStructure(10, 370);
 
+        /*
+         * Otsikko kirjan luonnille
+         */
         Label newBookText = new Label("Uusi kirja:");
         newBookText.setStyle("-fx-font-size: 20");
         newBookText.setLayoutX(20);
@@ -86,20 +102,20 @@ public class Bookshelf extends Application {
             }
         });
 
+        /*
+         * Luodaan funktio hyllytason valitsemiselle
+         */
         ToggleGroup upperOrLowerGroup = new ToggleGroup();
 
         ToggleButton upperSelected = new ToggleButton("Ylähylly");
-        ToggleButton lowerSelected = new ToggleButton("Alahylly");
-
         upperSelected.setToggleGroup(upperOrLowerGroup);
-        lowerSelected.setToggleGroup(upperOrLowerGroup);
-
         upperSelected.setLayoutX(20);
         upperSelected.setLayoutY(115);
 
+        ToggleButton lowerSelected = new ToggleButton("Alahylly");
+        lowerSelected.setToggleGroup(upperOrLowerGroup);
         lowerSelected.setLayoutX(80);
         lowerSelected.setLayoutY(115);
-
 
         /*
          * newBook -nappi lisää kirjan hyllyyn, kun otsikko ja väri on annettu.
@@ -112,54 +128,74 @@ public class Bookshelf extends Application {
          * Luodaan toiminto newBook-napille.
          * Tarkistetaan onko kaikki kirjan tiedot annettu.
          */
-        newBook.setOnAction(e -> {
+        newBook.setOnAction(event -> {
             boolean titleEntered = bookTitle.getLength() > 0;
             boolean toggleSelected = upperOrLowerGroup.getSelectedToggle() != null;
             boolean colorSelected = bookColor.getValue() != null;
             boolean allSelected = titleEntered && toggleSelected && colorSelected;
 
-            if (!allSelected) { root.getChildren().add(missingInfo());
+            if (!allSelected) {
+                root.getChildren().add(missingInfo());
             } else if (upperSelected.isSelected()) {
 
-                if (booksUpper.getChildren().size() >= 23) { root.getChildren().add(shelfFull());
+                if (booksUpper.getChildren().size() >= 23) {
+                    root.getChildren().add(shelfFull());
                 } else {
 
-                    StackPane bookRectangle = bookRectangle(bookTitle.getText(), bookColor.getValue());
-                    booksUpper.getChildren().add(bookRectangle);
+                    StackPane bookRectangleTop = bookRectangle(bookTitle.getText(), bookColor.getValue());
+                    booksUpper.getChildren().add(bookRectangleTop);
 
                     Book book = new Book(bookTitle.getText(), bookColor.getValue());
-                    books.put(books.size()+1, book);
+                    books.put(books.size() + 1, book);
+
+                    Button bookButton = new Button();
+                    bookButton.setRotate(90);
+                    bookButton.setMinWidth(150);
+                    bookButton.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+                    bookButton.setOnMouseClicked(e -> {
+                        bookPage(book, readBook(book));
+                    });
+                    bookRectangleTop.getChildren().add(bookButton);
                 }
 
             } else if (lowerSelected.isSelected()) {
 
-                if (booksLower.getChildren().size() >= 23) { root.getChildren().add(shelfFull());
+                if (booksLower.getChildren().size() >= 23) {
+                    root.getChildren().add(shelfFull());
                 } else {
 
-                    StackPane bookRectangle = bookRectangle(bookTitle.getText(), bookColor.getValue());
-                    booksLower.getChildren().add(bookRectangle);
+                    StackPane bookRectangleBot = bookRectangle(bookTitle.getText(), bookColor.getValue());
+                    booksLower.getChildren().add(bookRectangleBot);
 
                     Book book = new Book(bookTitle.getText(), bookColor.getValue());
-                    books.put(books.size()+1, book);
-                }
+                    books.put(books.size() + 1, book);
 
+                    Button bookButton = new Button();
+                    bookButton.setRotate(90);
+                    bookButton.setMinWidth(150);
+                    bookButton.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+                    bookButton.setOnMouseClicked(e -> {
+                        bookPage(book, readBook(book));
+                    });
+                    bookRectangleBot.getChildren().add(bookButton);
+                }
             }
 
             try {
-                createFile(bookTitle.getText());
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+                Files.createFile(Paths.get(bookTitle.getText()));
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
             }
+
             bookTitle.clear();
         });
-
 
         /*
          * Lisätään oliot root-paneeliin.
          */
         root.getChildren().addAll(newBookText, upperShelf, lowerShelf,
-                                  booksUpper, booksLower, bookTitle, bookColor,
-                                  upperSelected, lowerSelected, newBook);
+                booksUpper, booksLower, bookTitle, bookColor,
+                upperSelected, lowerSelected, newBook);
 
         /*
          * Luodaan scene ja näytetään ikkuna.
@@ -207,8 +243,6 @@ public class Bookshelf extends Application {
 
         bookCovers.getChildren().addAll(rectangle, bookTitle);
 
-        bookCovers.setOnMouseClicked(event -> {readBook();});
-
         return bookCovers;
     }
 
@@ -238,12 +272,59 @@ public class Bookshelf extends Application {
         return shelfFull;
     }
 
-    private void createFile(String bookTitle) throws IOException {
-        File obj = new File(bookTitle);
+    /*
+     * Metodi joka suorittaa kirjaan kijoittamisen.
+     */
+    private void saveToFile(String bookTitle, String text) {
+
+        File file = new File(bookTitle);
+
+        try {
+            FileWriter writer = new FileWriter(file, true);
+            writer.write(text);
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private void readBook() {
+    /*
+     * Luodaan ikkuna kirjaan kirjoittamista varten.
+     * Pyritään luomaan vain yksi ikkuna per kirja.
+     * Uutta ikkunaa ei luoda, vaan käytetään olemassaolevaa.
+     */
+    private void bookPage(Book book, TextArea writeText) {
+        Stage currentBookPage = new Stage();
+        currentBookPage.setTitle(book.getTitle());
 
+        Button saveText = new Button("Lopeta kirjoittaminen.");
+        saveText.setOnAction(e -> {
+            String text = writeText.getText();
+            saveToFile(book.getTitle(), text);
+            currentBookPage.close();
+        });
+
+        VBox page = new VBox(writeText, saveText);
+        currentBookPage.setScene(new Scene(page, 700, 400));
+        currentBookPage.show();
     }
 
+    /*
+     * Luodaan alue johon kirjoiteetaan ja tuodaan olemassaoleva teksti.
+     */
+    private TextArea readBook(Book book) {
+
+        TextArea writeText = new TextArea();
+        writeText.setPrefSize(700, 500);
+        writeText.setWrapText(true);
+
+        try {
+            Path path = Paths.get(book.getTitle());
+            String existingContent = String.join("", Files.readAllLines(path));
+            writeText.setText(existingContent);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        return writeText;
+    }
 }
